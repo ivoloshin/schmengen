@@ -1,6 +1,6 @@
 # Schengen-Schmengen 🥯
 
-A completely vibed project. Schengen-Schmengen is a visual 90/180 visa calculator featuring a drag-and-drop timeline, real-time rolling window analysis, and "Safe Start" zones to prevent overstays. Built as an offline-capable PWA with full localization in 8 languages (including Yiddish).
+A completely vibed project. Schengen-Schmengen is a visual Schengen Area 90/180 visa calculator featuring a drag-and-drop timeline, real-time rolling window analysis, and "Safe Start" zones to prevent overstays. Built as an offline-capable PWA with full localization in 8 languages (including Yiddish).
 
 **Live Site:** [https://schmengen.static.domains/](https://schmengen.static.domains/)
 

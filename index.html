@@ -796,9 +796,22 @@
 
             const checkStats = useMemo(() => {
                 if(!checkDate) return null;
+                
+                // --- FIX 1: REMOVED "- MS_PER_DAY" ---
+                // Previously, this subtracted 1 day, calculating usage for the window 
+                // ending yesterday. We must pass 'checkDate' directly to include 
+                // the selected day in the 180-day count.
+                const u = calcUsage(checkDate, analysisTrips); 
+                
+                // CalcSafe already correctly uses the array date as the start point
                 const s = calcSafe(checkDate, analysisTrips);
-                const u = calcUsage(checkDate - MS_PER_DAY, analysisTrips); 
-                return { u: u, s: s, gap: getGapStats(checkDate, analysisTrips), expiring: getExpiringDays(checkDate, s, analysisTrips) };
+                
+                return { 
+                    u: u, 
+                    s: s, 
+                    gap: getGapStats(checkDate, analysisTrips), 
+                    expiring: getExpiringDays(checkDate, s, analysisTrips) 
+                };
             }, [checkDate, analysisTrips]);
 
             return (

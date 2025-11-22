@@ -488,8 +488,10 @@
             // Constants
             const PX_PER_DAY = 14;
             const LANE_SPLIT_Y = 220;
-            const TOTAL_HEIGHT = 350;
+            const TRIP_H = 120; // ~60% Height relative to 220ish
+            const TOTAL_HEIGHT = 380;
             const GRAPH_H = TOTAL_HEIGHT - LANE_SPLIT_Y - 20;
+            const TRIP_Y = 50; // Centered-ish in the top lane
 
             // Logic
             const calcUsage = (target, currentTrips) => {
@@ -530,6 +532,70 @@
                     }
                 });
                 return ids;
+            }, [trips]);
+
+            // --- TRIP STATS CALCULATION ---
+            const tripStats = useMemo(() => {
+                const stats = {};
+                const sorted = [...trips].sort((a,b) => a.start - b.start);
+
+                sorted.forEach((t, index) => {
+                    // 1. Check for Violations inside the trip
+                    let firstOver = null;
+                    let maxUsed = 0;
+                    for(let d = t.start; d <= t.end; d += MS_PER_DAY) {
+                        const u = calcUsage(d, sorted);
+                        if(u > 90) {
+                            if(!firstOver) firstOver = d;
+                            maxUsed = Math.max(maxUsed, u - 90);
+                        }
+                    }
+
+                    if (firstOver) {
+                        stats[t.id] = {
+                            type: 'danger',
+                            date: firstOver,
+                            excess: maxUsed
+                        };
+                    } else {
+                        // 2. Check Safe Extension
+                        const nextTrip = sorted[index + 1];
+                        const gap = nextTrip ? diffDays(nextTrip.start, t.end) - 1 : 180;
+                        
+                        let extendable = 0;
+                        const maxSim = Math.min(gap, 90);
+
+                        if (maxSim > 0) {
+                            for(let i=1; i<=maxSim; i++) {
+                                const extendedEnd = t.end + (i * MS_PER_DAY);
+                                const tempTrips = sorted.map(tr => tr.id === t.id ? {...tr, end: extendedEnd} : tr);
+                                
+                                if(calcUsage(extendedEnd, tempTrips) > 90) break;
+
+                                const checkHorizon = extendedEnd + (180 * MS_PER_DAY);
+                                let futureBroken = false;
+                                for(let j = index + 1; j < sorted.length; j++) {
+                                    const ft = sorted[j];
+                                    if(ft.start > checkHorizon) break;
+                                    for(let fd = ft.start; fd <= ft.end; fd += MS_PER_DAY) {
+                                        if(calcUsage(fd, tempTrips) > 90) {
+                                            futureBroken = true;
+                                            break;
+                                        }
+                                    }
+                                    if(futureBroken) break;
+                                }
+                                if(futureBroken) break;
+                                extendable = i;
+                            }
+                        }
+                        stats[t.id] = {
+                            type: 'safe',
+                            extendable: extendable
+                        };
+                    }
+                });
+                return stats;
             }, [trips]);
 
             const getGapStats = (date, tripList) => {
@@ -796,16 +862,8 @@
 
             const checkStats = useMemo(() => {
                 if(!checkDate) return null;
-                
-                // --- FIX 1: REMOVED "- MS_PER_DAY" ---
-                // Previously, this subtracted 1 day, calculating usage for the window 
-                // ending yesterday. We must pass 'checkDate' directly to include 
-                // the selected day in the 180-day count.
                 const u = calcUsage(checkDate, analysisTrips); 
-                
-                // CalcSafe already correctly uses the array date as the start point
                 const s = calcSafe(checkDate, analysisTrips);
-                
                 return { 
                     u: u, 
                     s: s, 
@@ -922,19 +980,63 @@
                                 {trips.map(t => {
                                     const x = getX(t.start), w = getW(t.start, t.end);
                                     const isDrag = dragState?.id === t.id;
-                                    const isDanger = dangerTripIds.has(t.id);
+                                    const stats = tripStats[t.id] || {};
+                                    const isDanger = stats.type === 'danger';
+                                    const isCompact = w < 65;
+                                    
                                     if(x + w < -100 || x > window.innerWidth + 100) return null;
                                     
-                                    // COLORS CHANGED: Green/Red instead of Blue/Red
                                     const fillColor = isDanger ? '#ef4444' : (isDrag ? '#16a34a' : '#22c55e');
                                     const strokeColor = isDanger ? '#b91c1c' : 'white';
 
                                     return (
-                                        <g key={t.id} transform={`translate(${x}, 80)`}>
-                                            <rect width={w} height="40" rx="6" fill={fillColor} stroke={strokeColor} strokeWidth="2" onPointerDown={(e)=>onPointerDown(e,'TRIP',t.id)}/>
-                                            <g transform="translate(4, 12)" opacity="0.5" className="pointer-events-none"><line x1="0" y1="0" x2="0" y2="16" stroke="white" strokeWidth="2"/><line x1="3" y1="0" x2="3" y2="16" stroke="white" strokeWidth="2"/></g>
-                                            <g transform={`translate(${w-20}, 0)`} onPointerDown={(e)=>onPointerDown(e,'RESIZE',t.id)}><rect width="20" height="40" rx="4" fill="rgba(0,0,0,0.1)" /><path d="M8 12l4 8l-4 8" stroke="white" strokeWidth="2" fill="none" opacity="0.8"/></g>
-                                            {w>35 && (<g className="pointer-events-none"><text x={w/2} y="16" textAnchor="middle" className="text-[10px] font-bold fill-white">{diffDays(t.end, t.start)+1}d</text><text x={w/2} y="28" textAnchor="middle" className="text-[8px] fill-blue-100">{formatShortDate(t.start, t.code)} - {formatShortDate(t.end, t.code)}</text></g>)}
+                                        <g key={t.id} transform={`translate(${x}, ${TRIP_Y})`}>
+                                            {/* BODY */}
+                                            <rect width={w} height={TRIP_H} rx="6" fill={fillColor} stroke={strokeColor} strokeWidth="2" onPointerDown={(e)=>onPointerDown(e,'TRIP',t.id)} className="shadow-lg"/>
+                                            
+                                            {/* HANDLE DECORATION */}
+                                            <g transform={`translate(4, ${TRIP_H/2 - 8})`} opacity="0.5" className="pointer-events-none"><line x1="0" y1="0" x2="0" y2="16" stroke="white" strokeWidth="2"/><line x1="3" y1="0" x2="3" y2="16" stroke="white" strokeWidth="2"/></g>
+                                            
+                                            {/* RESIZE HANDLE */}
+                                            <g transform={`translate(${w-20}, 0)`} onPointerDown={(e)=>onPointerDown(e,'RESIZE',t.id)}>
+                                                <rect width="20" height={TRIP_H} rx="4" fill="rgba(0,0,0,0.1)" />
+                                                <path d={`M8 ${TRIP_H/2 - 4}l4 4l-4 4`} stroke="white" strokeWidth="2" fill="none" opacity="0.8"/>
+                                            </g>
+                                            
+                                            {/* TEXT CONTENT */}
+                                            {isCompact ? (
+                                                 <text x={w/2} y={TRIP_H/2} textAnchor="middle" dominantBaseline="middle" className="text-sm font-bold fill-white">
+                                                     {diffDays(t.end, t.start)+1}d
+                                                 </text>
+                                            ) : (
+                                                <g className="pointer-events-none">
+                                                    {/* START DATE (Left) */}
+                                                    <text x="10" y="24" textAnchor="start" className="text-xs font-bold fill-white opacity-90">
+                                                        {formatShortDate(t.start, t.code)}
+                                                    </text>
+
+                                                    {/* END DATE (Right) */}
+                                                    <text x={w-24} y="24" textAnchor="end" className="text-xs font-bold fill-white opacity-90">
+                                                        {formatShortDate(t.end, t.code)}
+                                                    </text>
+                                                    
+                                                    {/* DURATION (Center) */}
+                                                    <text x={w/2} y={TRIP_H/2 + 5} textAnchor="middle" className="text-2xl font-bold fill-white">
+                                                        {diffDays(t.end, t.start)+1} days
+                                                    </text>
+
+                                                    {/* STATUS (Right Aligned) */}
+                                                    {isDanger ? (
+                                                        <text x={w-24} y={TRIP_H - 12} textAnchor="end" className="text-xs font-bold fill-white">
+                                                            OVERSTAY: +{stats.excess}d
+                                                        </text>
+                                                    ) : (
+                                                        <text x={w-24} y={TRIP_H - 12} textAnchor="end" className="text-xs font-bold fill-white opacity-90">
+                                                            Extendable: {stats.extendable >= 90 ? '> 90' : `+ ${stats.extendable}`}d
+                                                        </text>
+                                                    )}
+                                                </g>
+                                            )}
                                         </g>
                                     )
                                 })}

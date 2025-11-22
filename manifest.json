@@ -1,0 +1,17 @@
+{
+  "name": "Schengen-Schmengen",
+  "short_name": "Schmengen",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#2563eb",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' fill='%232563eb' rx='100'/%3E%3Cpath d='M368 128h-32V96h-32v32H208V96h-32v32h-32c-17.6 0-32 14.4-32 32v256c0 17.6 14.4 32 32 32h224c17.6 0 32-14.4 32-32V160c0-17.6-14.4-32-32-32zm0 288H144V208h224v208z' fill='white'/%3E%3C/svg%3E",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

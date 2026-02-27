@@ -1,0 +1,53 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to private registry
+        uses: docker/login-action@v3
+        with:
+          registry: docker.ilyav.net
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            docker.ilyav.net/schmengen:latest
+            docker.ilyav.net/schmengen:${{ github.sha }}
+
+      - name: Deploy to Portainer
+        env:
+          PORTAINER_URL: https://portainer.ilyav.net
+          PORTAINER_API_KEY: ${{ secrets.PORTAINER_API_KEY }}
+          ENDPOINT_ID: 3
+          STACK_NAME: schmengen
+        run: |
+          COMPOSE=$(jq -Rs . docker-compose.yml)
+          STACK_ID=$(curl -sf -H "X-API-Key: ${PORTAINER_API_KEY}" \
+            "${PORTAINER_URL}/api/stacks" | jq -r ".[] | select(.Name==\"${STACK_NAME}\") | .Id")
+
+          if [ -n "$STACK_ID" ]; then
+            curl -sf -X PUT \
+              -H "X-API-Key: ${PORTAINER_API_KEY}" \
+              -H "Content-Type: application/json" \
+              -d "{\"stackFileContent\":${COMPOSE},\"env\":[],\"prune\":false,\"pullImage\":true}" \
+              "${PORTAINER_URL}/api/stacks/${STACK_ID}?endpointId=${ENDPOINT_ID}"
+          else
+            curl -sf -X POST \
+              -H "X-API-Key: ${PORTAINER_API_KEY}" \
+              -H "Content-Type: application/json" \
+              -d "{\"name\":\"${STACK_NAME}\",\"stackFileContent\":${COMPOSE},\"env\":[]}" \
+              "${PORTAINER_URL}/api/stacks/create/standalone/string?endpointId=${ENDPOINT_ID}"
+          fi

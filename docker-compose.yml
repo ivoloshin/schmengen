@@ -1,0 +1,11 @@
+services:
+  schmengen:
+    image: docker.ilyav.net/schmengen:latest
+    container_name: schmengen
+    restart: always
+    networks:
+      - proxy-net
+
+networks:
+  proxy-net:
+    external: true

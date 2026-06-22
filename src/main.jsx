@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
+import {
+    MS_PER_DAY, toUTC, addDays, diffDays, formatShortDate,
+    calcUsage, calcSafe, getGapStats, getExpiringDays,
+    getCalendarDays, getWeekStarts, getMonths,
+} from './schengen.js';
 
 
         // --- LOCALIZATION DATA ---
@@ -220,12 +225,7 @@ import './index.css';
             return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d={d[name]||""} /></svg>;
         };
 
-        // --- UTILS ---
-        const MS_PER_DAY = 86400000;
-        const toUTC = (d) => Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
-        const addDays = (ts, d) => ts + d * MS_PER_DAY;
-        const diffDays = (t1, t2) => Math.round((t1 - t2) / MS_PER_DAY);
-        const formatShortDate = (ts, locale = 'en-GB') => new Date(ts).toLocaleDateString(locale, { day: 'numeric', month: 'short', timeZone: 'UTC' });
+        // --- UTILS (MS_PER_DAY/toUTC/addDays/diffDays/formatShortDate imported from ./schengen.js) ---
 
         // --- COMPONENTS ---
         const HelpModal = ({ isOpen, onClose, t }) => {
@@ -317,15 +317,7 @@ import './index.css';
             const [selStart, setSelStart] = useState(null);
             const [error, setError] = useState(null);
 
-            const days = useMemo(() => {
-                const d = new Date(curr);
-                const y = d.getUTCFullYear(), m = d.getUTCMonth();
-                const total = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
-                const first = new Date(Date.UTC(y, m, 1)).getUTCDay();
-                const arr = Array((first===0?6:first-1)).fill(null);
-                for(let i=1; i<=total; i++) arr.push(Date.UTC(y, m, i));
-                return arr;
-            }, [curr]);
+            const days = useMemo(() => getCalendarDays(curr), [curr]);
 
             const isOverlap = (s, e) => trips.some(t => Math.max(s, t.start) <= Math.min(e, t.end));
 
@@ -412,36 +404,7 @@ import './index.css';
             const GRAPH_H = TOTAL_HEIGHT - LANE_SPLIT_Y - 20;
             const TRIP_Y = 50; // Centered-ish in the top lane
 
-            // Logic
-            const calcUsage = (target, currentTrips) => {
-                const winStart = target - (179 * MS_PER_DAY);
-                let used = 0;
-                currentTrips.forEach(t => {
-                    const s = Math.max(t.start, winStart), e = Math.min(t.end, target);
-                    if(s <= e) used += diffDays(e, s) + 1;
-                });
-                return used;
-            };
-
-            const calcSafe = (arrDate, tripList) => {
-                const tList = tripList || trips;
-                for (let k = 1; k <= 90; k++) {
-                    const testDate = arrDate + ((k - 1) * MS_PER_DAY);
-                    if (tList.some(t => testDate >= t.start && testDate <= t.end)) return k - 1;
-
-                    const winStart = testDate - (179 * MS_PER_DAY);
-                    let daysInWindow = 0;
-                    tList.forEach(t => {
-                        const s = Math.max(t.start, winStart);
-                        const e = Math.min(t.end, testDate);
-                        if (s <= e && t.end < arrDate) daysInWindow += diffDays(e, s) + 1;
-                    });
-                    daysInWindow += k; 
-
-                    if (daysInWindow > 90) return k - 1;
-                }
-                return 90;
-            };
+            // Logic (calcUsage/calcSafe imported from ./schengen.js)
 
             const dangerTripIds = useMemo(() => {
                 const ids = new Set();
@@ -517,34 +480,7 @@ import './index.css';
                 return stats;
             }, [trips]);
 
-            const getGapStats = (date, tripList) => {
-                const tList = tripList || trips;
-                const past = tList.filter(t => t.end < date).sort((a,b) => b.end - a.end)[0];
-                const since = past ? diffDays(date, past.end) - 1 : null;
-                const future = tList.filter(t => t.start > date).sort((a,b) => a.start - b.start)[0];
-                const until = future ? diffDays(future.start, date) - 1 : null;
-                return { since, until };
-            };
-
-            const getExpiringDays = (date, duration, tripList) => {
-                const tList = tripList || trips;
-                const stayEnd = date + ((duration - 1) * MS_PER_DAY);
-                const startWindowStart = date - (179 * MS_PER_DAY);
-                const endWindowStart = stayEnd - (179 * MS_PER_DAY);
-                let expiring = 0;
-                tList.forEach(t => {
-                    if (t.end < date) { 
-                        const s1 = Math.max(t.start, startWindowStart);
-                        const e1 = Math.min(t.end, date);
-                        const usedAtStart = (s1 <= e1) ? diffDays(e1, s1) + 1 : 0;
-                        const s2 = Math.max(t.start, endWindowStart);
-                        const e2 = Math.min(t.end, stayEnd);
-                        const usedAtEnd = (s2 <= e2) ? diffDays(e2, s2) + 1 : 0;
-                        if(usedAtStart > usedAtEnd) expiring += (usedAtStart - usedAtEnd);
-                    }
-                });
-                return expiring;
-            };
+            // getGapStats/getExpiringDays imported from ./schengen.js
 
             const handleAddTrip = (s, e) => setTrips(prev => [...prev, { id: Math.random().toString(36).substr(2,9), start:s, end:e }]);
             const removeTrip = (id) => setTrips(prev => prev.filter(t => t.id !== id));
@@ -563,38 +499,9 @@ import './index.css';
             const getW = (s, e) => (diffDays(e, s) + 1) * PX_PER_DAY;
 
             // --- GRID GENERATION ---
-            const months = useMemo(() => {
-                const arr = [];
-                const startM = new Date(viewStart); 
-                startM.setUTCDate(1); 
-                startM.setUTCHours(0, 0, 0, 0);
-                startM.setUTCMonth(startM.getUTCMonth() - 2);
-                
-                for(let i=0; i<36; i++){
-                    const d = new Date(startM); 
-                    d.setUTCMonth(d.getUTCMonth() + i);
-                    const next = new Date(d); 
-                    next.setUTCMonth(next.getUTCMonth() + 1);
-                    const monthStart = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1);
-                    const nextMonthStart = Date.UTC(next.getUTCFullYear(), next.getUTCMonth(), 1);
-                    const w = diffDays(nextMonthStart, monthStart) * PX_PER_DAY;
-                    arr.push({ d: monthStart, w, label: d.toLocaleDateString(t.code, {month:'short', year:'2-digit', timeZone:'UTC'}), isEven: i%2===0 });
-                }
-                return arr;
-            }, [viewStart, t.code]);
+            const months = useMemo(() => getMonths(viewStart, t.code, PX_PER_DAY), [viewStart, t.code]);
 
-            const weeks = useMemo(() => {
-                const arr = [];
-                const d = new Date(viewStart - (20 * MS_PER_DAY));
-                const day = d.getUTCDay();
-                const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1);
-                d.setUTCDate(diff);
-                for(let i=0; i<100; i++){
-                    const wDate = new Date(d); wDate.setUTCDate(wDate.getUTCDate() + (i * 7));
-                    arr.push(toUTC(wDate));
-                }
-                return arr;
-            }, [viewStart]);
+            const weeks = useMemo(() => getWeekStarts(viewStart), [viewStart]);
 
             const greenZones = useMemo(() => {
                 const zones = [];

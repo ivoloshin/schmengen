@@ -2,3 +2,5 @@
 .github
 docker-compose.yml
 *.md
+node_modules
+dist

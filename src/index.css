@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+::-webkit-scrollbar { width: 0px; background: transparent; }
+.select-none { -webkit-user-select: none; user-select: none; }
+body { overscroll-behavior-y: none; touch-action: none; }
+.pb-safe { padding-bottom: env(safe-area-inset-bottom, 20px); }
+.cursor-pointer { cursor: pointer; }

@@ -4,6 +4,8 @@ A completely vibed project. Schengen-Schmengen is a visual Schengen Area 90/180 
 
 **Live Site:** [https://schmengen.static.domains/](https://schmengen.static.domains/)
 
+![Schengen-Schmengen screenshot](preview.png)
+
 ## Features
 
 * **Visual Timeline:** See your trips on a continuous scrolling timeline rather than a text list.

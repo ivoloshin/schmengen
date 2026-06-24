@@ -1,6 +1,6 @@
 # Schengen-Schmengen 🥯
 
-A completely vibed project. Schengen-Schmengen is a visual Schengen Area 90/180 visa calculator featuring a drag-and-drop timeline, real-time rolling window analysis, and "Safe Start" zones to prevent overstays. Built as an installable PWA with full localization in 7 languages (including Yiddish).
+A completely vibed project. Schengen-Schmengen is a visual Schengen Area 90/180 visa calculator featuring a drag-and-drop timeline, real-time rolling window analysis, and "Safe Start" zones to prevent overstays. Built as an offline-capable, installable PWA with localization in 6 languages, plus a tongue-in-cheek Yiddish-flavored mode 🥯.
 
 **Live Site:** [https://schmengen.static.domains/](https://schmengen.static.domains/)
 
@@ -11,8 +11,8 @@ A completely vibed project. Schengen-Schmengen is a visual Schengen Area 90/180 
 * **Visual Timeline:** See your trips on a continuous scrolling timeline rather than a text list.
 * **Rolling Window Logic:** Automatically calculates your 90-day allowance based on the strict 180-day rolling window rule.
 * **Safe Start Analysis:** The green lane at the bottom highlights exactly when you can legally re-enter the Schengen zone for a full 90-day trip.
-* **Installable PWA:** Built as a Progressive Web App, so it can be installed to your home screen / desktop and launched like a native app.
-* **Multi-Language:** Fully translated into English, Spanish, French, German, Russian, Chinese, and a special **Yiddish** mode (pick the 🥯 Bagel from the language menu in the top bar).
+* **Offline Capable:** Built as a Progressive Web App (PWA). Once loaded, a service worker caches the app so it works without an internet connection and can be installed to your home screen / desktop.
+* **Multi-Language:** Fully translated into 6 languages — English, Spanish, French, German, Russian, and Chinese. There's also a tongue-in-cheek **Yiddish-flavored** mode for fun (pick the 🥯 Bagel from the language menu in the top bar) — it's English peppered with Yiddish slang, not a literal translation.
 
 ## How to Use
 
@@ -52,4 +52,4 @@ npm test         # run the test suite (runs under TZ=UTC)
 ```
 
 ---
-*Built with React, Tailwind CSS, and Vite. Ships as an installable PWA.*
+*Built with React, Tailwind CSS, and Vite. Ships as an offline-capable, installable PWA.*

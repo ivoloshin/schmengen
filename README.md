@@ -51,5 +51,11 @@ npm run preview  # preview the production build locally
 npm test         # run the test suite (runs under TZ=UTC)
 ```
 
+## Deploying
+
+A push to `main` runs `.github/workflows/deploy.yml`. It builds the Docker image, pushes it to the private registry and updates the `schmengen` Portainer stack, which serves https://schmengen.ilyav.net.
+
+**When GitHub Actions can't run.** This repo is public, so its runs shouldn't use the account's Actions minutes. If a run still fails within seconds with the billing message (*"The job was not started because … your spending limit needs to be increased"*), don't wait for the reset. Deploy from the Mac the way the workflow does: build for `linux/amd64` (the Mac is arm64), push `docker.ilyav.net/schmengen:latest` and `:<commit sha>`, then update the `schmengen` stack so it pulls the new image. The exact commands, and where the credentials live, are in the private ilyav.net repo's README (*When GitHub Actions is out of minutes*). They're the same with `homepage` swapped for `schmengen`.
+
 ---
 *Built with React, Tailwind CSS, and Vite. Ships as an offline-capable, installable PWA.*
